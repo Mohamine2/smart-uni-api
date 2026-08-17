@@ -6,10 +6,31 @@ from django.contrib.auth.decorators import login_required
 from functools import wraps
 from django.db.models import Sum, Q
 from decimal import Decimal
+from rest_framework import viewsets
 
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, ManageDeviceForm, ProfileEditForm, \
     RoomReservationForm
+from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer
+
+
+class SmartDeviceViewSet(viewsets.ModelViewSet):
+    serializer_class = SmartDeviceSerializer
+    queryset = SmartDevice.objects.select_related('room')
+
+    def get_queryset(self):
+        return self.queryset.filter(room__apartment__occupant=self.request.user)
+
+class StudyRoomReservationViewSet(viewsets.ModelViewSet):
+    serializer_class = StudyRoomReservationSerializer
+    queryset = StudyRoomReservation.objects.select_related('study_room', 'student').all()
+
+    def get_queryset(self):
+        return self.queryset.filter(student=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(student=self.request.user)
+
 
 
 # --- 1. HOME & NEWS MODULE ---
