@@ -4,9 +4,17 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("residence_connectee.urls")),
+    path("api/",
+         include("residence_connectee.urls")
+    ),
     # # Validate user credentials and obtain Access and Refresh tokens
-    path("api/token/", TokenObtainPairView.as_view()),
+    path("api/token/",
+         TokenObtainPairView.as_view(),
+         name="token_obtain_pair"
+    ),
     # Get a new Access token using the Refresh token
-    path("api/token/refresh/", TokenRefreshView.as_view())
+    path("api/token/refresh/",
+         TokenRefreshView.as_view(),
+         name="token_refresh"
+    )
 ]
