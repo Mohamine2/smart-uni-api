@@ -21,7 +21,16 @@ class Student(AbstractUser):
         ('Advanced', 'Advanced'),
         ('Expert', 'Expert'),
     ]
-    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='Beginner')
+
+    class Level(models.IntegerChoices):
+        BEGINNER = 1, 'Beginner'
+        INTERMEDIATE = 2, 'Intermediate'
+        ADVANCED = 3, 'Advanced'
+
+    level = models.PositiveSmallIntegerField(
+        choices=Level.choices,
+        default=Level.BEGINNER
+    )
 
     login_points = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     browsing_points = models.DecimalField(

@@ -86,7 +86,7 @@ class BaseUserOwnedResourceTest():
 # SMART DEVICE TESTS
 # ==============================================================================
 
-class SmartDeviceViewSetTests(BaseUserOwnedResourceTest):
+class SmartDeviceViewSetTests(BaseUserOwnedResourceTest, APITestCase):
 
     def setup_resource_data(self):
         """Set up Apartment -> Room -> Device hierarchy for both users."""
@@ -97,6 +97,9 @@ class SmartDeviceViewSetTests(BaseUserOwnedResourceTest):
             name="Living Room Light",
             room=self.room_user1,
         )
+
+        self.user1.level = Student.Level.INTERMEDIATE  # ou 2
+        self.user1.save()
 
         # Resources for user2
         self.apartment_user2 = Apartment.objects.create(occupant=self.user2)
@@ -143,6 +146,75 @@ class SmartDeviceViewSetTests(BaseUserOwnedResourceTest):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(SmartDevice.objects.filter(name='Rogue Device').exists())
+
+    def test_level_1_user_cannot_update_or_delete_device(self):
+        """Level 1 student can view and create, but cannot modify or delete."""
+        self.user1.level = 1
+        self.user1.save()
+        self.client.force_authenticate(user=self.user1)
+
+        # PATCH attempt -> 403 Forbidden
+        patch_res = self.client.patch(
+            self.detail_url_user1,
+            {'name': 'New Name'},
+            format='json'
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # DELETE attempt -> 403 Forbidden
+        delete_res = self.client.delete(self.detail_url_user1)
+        self.assertEqual(delete_res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_level_2_user_can_update_and_earn_points(self):
+        """Level 2 student can update configuration and earns 0.50 points."""
+        self.user1.level = 2
+        self.user1.save()
+        self.client.force_authenticate(user=self.user1)
+
+        initial_points = self.user1.browsing_points
+        response = self.client.patch(
+            self.detail_url_user1,
+            {'is_on': True, 'power_consumption': 45.5},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.browsing_points, initial_points + Decimal('0.50'))
+
+    def test_power_consumption_forced_to_zero_when_device_turned_off(self):
+        """Turning a device off must reset power consumption to 0.0."""
+        self.user1.level = 2
+        self.user1.save()
+        self.client.force_authenticate(user=self.user1)
+
+        response = self.client.patch(
+            self.detail_url_user1,
+            {'is_on': False, 'power_consumption': 50.0},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.device_user1.refresh_from_db()
+        self.assertEqual(self.device_user1.power_consumption, 0.0)
+
+    def test_statistics_endpoint_requires_level_3(self):
+        """Only Level 3 students can access aggregated statistics."""
+        stats_url = reverse('smartdevice-statistics')
+
+        # Test with Level 2 -> Denied
+        self.user1.level = 2
+        self.user1.save()
+        self.client.force_authenticate(user=self.user1)
+        self.assertEqual(self.client.get(stats_url).status_code, status.HTTP_403_FORBIDDEN)
+
+        # Test with Level 3 -> Allowed
+        self.user1.level = 3
+        self.user1.save()
+        self.client.force_authenticate(user=self.user1)
+        res = self.client.get(stats_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('total_devices', res.data)
 
 
 # ==============================================================================

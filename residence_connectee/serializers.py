@@ -20,17 +20,22 @@ class SmartDeviceSerializer(serializers.ModelSerializer):
         ]
 
     def validate_room(self, value):
-        """
-        Verify that the specified item belongs to the authenticated user.
-        """
+        """Ensure the target room belongs to the authenticated student's apartment."""
         user = self.context['request'].user
-
-        # If the user is not the owner of the apartment linked to this room
         if value.apartment.occupant != user:
             raise serializers.ValidationError(
-                "You cannot assign a device to a room that does not belong to you."
+                "You cannot assign a device to a room that does not belong to your apartment."
             )
         return value
+
+    def validate(self, attrs):
+        """Enforce zero power consumption when device is turned off."""
+        is_on = attrs.get('is_on', getattr(self.instance, 'is_on', False))
+
+        if not is_on:
+            attrs['power_consumption'] = 0.0
+
+        return attrs
 
 class StudyRoomReservationSerializer(serializers.ModelSerializer):
     class Meta:

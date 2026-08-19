@@ -4,25 +4,71 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from functools import wraps
-from django.db.models import Sum, Q, F
+from django.db.models import Sum, Q, F, Avg
 from decimal import Decimal
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from django_filters.rest_framework import DjangoFilterBackend
-
+from rest_framework.response import Response
+from rest_framework.decorators import action
 
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, ManageDeviceForm, ProfileEditForm, \
     RoomReservationForm
+from .permissions import IsAdminOrReadOnly, HasDeviceLevelPermission
 from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer
 
 
 class SmartDeviceViewSet(viewsets.ModelViewSet):
     serializer_class = SmartDeviceSerializer
     queryset = SmartDevice.objects.select_related('room')
+    permission_classes = [HasDeviceLevelPermission]
+
+    # Standard DRF Filtering (Swagger documented automatically)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['device_type', 'is_on', 'room', 'is_on']
+    search_fields = ['name']
+    ordering_fields = ['name', 'power_consumption']
 
     def get_queryset(self):
+        """Strict isolation: users only see devices in their own apartment."""
         return self.queryset.filter(room__apartment__occupant=self.request.user)
+
+    def _award_points(self):
+        """Helper method to atomically increment browsing points."""
+        type(self.request.user).objects.filter(pk=self.request.user.pk).update(
+            browsing_points=F('browsing_points') + Decimal('0.50')
+        )
+
+    def perform_create(self, serializer):
+        # Enforce defaults on creation
+        serializer.save(is_on=False, power_consumption=0.0)
+        self._award_points()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        self._award_points()
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        self._award_points()
+
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Aggregate statistics for all devices in the student's apartment."""
+        user_devices = self.get_queryset()
+
+        stats = user_devices.aggregate(
+            total_consumption=Sum('power_consumption'),
+            average_consumption=Avg('power_consumption')
+        )
+
+        return Response({
+            'total_devices': user_devices.count(),
+            'active_devices': user_devices.filter(is_on=True).count(),
+            'total_power_consumption': stats['total_consumption'] or 0.0,
+            'average_power_consumption': stats['average_consumption'] or 0.0,
+        }, status=status.HTTP_200_OK)
 
 class StudyRoomReservationViewSet(viewsets.ModelViewSet):
     serializer_class = StudyRoomReservationSerializer
@@ -37,17 +83,6 @@ class StudyRoomReservationViewSet(viewsets.ModelViewSet):
         type(self.request.user).objects.filter(pk=self.request.user.pk).update(
             browsing_points=F('browsing_points') + Decimal('0.50')
         )
-
-class IsAdminOrReadOnly(BasePermission):
-    def has_permission(self, request, view):
-        # SAFE_METHODS are read-only HTTP methods: GET, HEAD and OPTIONS.
-        # These methods are allowed for all users.
-        if request.method in SAFE_METHODS:
-            return True
-
-        # Any write operation (POST, PUT, PATCH, DELETE) requires
-        # the user to have administrator privileges (is_staff=True).
-        return request.user and request.user.is_staff
 
 class NewsViewSet(viewsets.ModelViewSet):
     serializer_class = NewsSerializer
