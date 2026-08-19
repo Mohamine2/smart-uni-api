@@ -1,112 +1,321 @@
-from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
 
-from residence_connectee.models import (
+from .models import (
     Apartment,
     News,
     Room,
     SmartDevice,
+    Student,
     StudyRoom,
     StudyRoomReservation,
 )
 
-from rest_framework.test import APITestCase
-from rest_framework import status
-from django.urls import reverse
 
-Student = get_user_model()
+# ==============================================================================
+# BASE TEST CLASS FOR USER-SCOPED RESOURCES
+# ==============================================================================
 
-class AuthenticationTests(APITestCase):
+class BaseUserOwnedResourceTest():
+    """
+    Base test class to verify data isolation and ownership enforcement.
+    Flagged with __test__ = False so unittest does not run it directly.
+    """
 
     def setUp(self):
-        # Primary test user
-        self.student = Student.objects.create_user(
-            username='test_user',
-            password='test_password',
+        # Create two regular students
+        self.user1 = Student.objects.create_user(
+            username="user1",
+            password="password123",
+        )
+        self.user2 = Student.objects.create_user(
+            username="user2",
+            password="password123",
         )
 
-        self.url = reverse('smartdevice-list')
+        # Populate model-specific test fixtures
+        self.setup_resource_data()
 
-    def test_access_denied_without_authentication(self):
-        """
-        Verify that an unauthenticated user cannot access
-        the endpoint.
+    def setup_resource_data(self):
+        raise NotImplementedError("Child classes must implement setup_resource_data.")
 
-        We send a GET request without providing authentication.
-        The API should return HTTP 401 (Unauthorized).
-        """
+    # --- Common Security & Isolation Tests ---
 
-        # Simulate a GET request to the endpoint.
-        # No token or authentication information is provided.
-        response = self.client.get(self.url)
-
-        # Check that the API denies access with HTTP 401.
+    def test_unauthenticated_user_cannot_access_endpoints(self):
+        """Verify anonymous requests are rejected with 401 Unauthorized."""
         self.assertEqual(
-            response.status_code,
+            self.client.get(self.list_url).status_code,
+            status.HTTP_401_UNAUTHORIZED
+        )
+        self.assertEqual(
+            self.client.get(self.detail_url_user1).status_code,
             status.HTTP_401_UNAUTHORIZED
         )
 
-    def test_access_allowed_with_authentication(self):
-        """
-        Verify that an authenticated user can access
-        the endpoint.
-        """
+    def test_authenticated_user_sees_only_own_items(self):
+        """Verify the list endpoint scopes results strictly to the authenticated user."""
+        self.client.force_authenticate(user=self.user1)
 
-        # Tell DRF that the request is made by our test user.
-        self.client.force_authenticate(user=self.student)
+        response = self.client.get(self.list_url)
 
-        # Send the same GET request, this time as an authenticated user.
-        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Ensure only user1's resource is returned despite multiple objects existing
+        self.assertEqual(len(response.data), 1)
 
-        # The request should be accepted: HTTP 200 (OK).
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
+    def test_cannot_access_other_users_item(self):
+        """Verify accessing another user's item returns 404 Not Found (hidden by get_queryset)."""
+        self.client.force_authenticate(user=self.user1)
+
+        response = self.client.get(self.detail_url_user2)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_cannot_delete_other_users_item(self):
+        """Verify attempting to delete another user's item returns 404 Not Found."""
+        self.client.force_authenticate(user=self.user1)
+
+        response = self.client.delete(self.detail_url_user2)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ==============================================================================
+# SMART DEVICE TESTS
+# ==============================================================================
+
+class SmartDeviceViewSetTests(BaseUserOwnedResourceTest):
+
+    def setup_resource_data(self):
+        """Set up Apartment -> Room -> Device hierarchy for both users."""
+        # Resources for user1
+        self.apartment_user1 = Apartment.objects.create(occupant=self.user1)
+        self.room_user1 = Room.objects.create(apartment=self.apartment_user1)
+        self.device_user1 = SmartDevice.objects.create(
+            name="Living Room Light",
+            room=self.room_user1,
         )
 
-    def test_access_allowed_with_real_jwt(self):
-        # Get the JWT token using the real token endpoint.
-        token_url = reverse("token_obtain_pair")
-
-        response = self.client.post(
-            token_url,
-            {
-                "username": "test_user",
-                "password": "test_password",
-            },
-            format="json"
+        # Resources for user2
+        self.apartment_user2 = Apartment.objects.create(occupant=self.user2)
+        self.room_user2 = Room.objects.create(apartment=self.apartment_user2)
+        self.device_user2 = SmartDevice.objects.create(
+            name="Bedroom Thermostat",
+            room=self.room_user2,
         )
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
+        # URLs required by BaseUserOwnedResourceTest
+        self.list_url = reverse('smartdevice-list')
+        self.detail_url_user1 = reverse(
+            'smartdevice-detail',
+            kwargs={'pk': self.device_user1.pk}
+        )
+        self.detail_url_user2 = reverse(
+            'smartdevice-detail',
+            kwargs={'pk': self.device_user2.pk}
         )
 
-        # Extract the access token
-        access_token = response.data["access"]
+    def test_owner_can_modify_own_device(self):
+        """Verify nominal PATCH update by resource owner."""
+        self.client.force_authenticate(user=self.user1)
 
-        # Add the JWT to the authorization header
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {access_token}"
+        response = self.client.patch(
+            self.detail_url_user1,
+            {'name': 'Updated Light Name'},
+            format='json'
         )
 
-        # Access the protected endpoint
-        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.device_user1.refresh_from_db()
+        self.assertEqual(self.device_user1.name, 'Updated Light Name')
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK
+    def test_user_cannot_create_device_in_another_users_room(self):
+        """Prevent attaching a new device to another user's room (IDOR prevention)."""
+        self.client.force_authenticate(user=self.user1)
+
+        payload = {
+            'name': 'Rogue Device',
+            'room': self.room_user2.pk,
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(SmartDevice.objects.filter(name='Rogue Device').exists())
+
+
+# ==============================================================================
+# STUDY ROOM RESERVATION TESTS
+# ==============================================================================
+
+class StudyRoomReservationViewSetTests(BaseUserOwnedResourceTest):
+    def setup_resource_data(self):
+        """Set up shared StudyRoom and user reservations."""
+        self.study_room = StudyRoom.objects.create(
+            name="Study Room A",
+            capacity=10,
         )
 
-    def test_access_denied_with_invalid_jwt(self):
-        # Send an invalid JWT.
-        self.client.credentials(
-            HTTP_AUTHORIZATION="Bearer invalid-token"
+        # Reservation belonging to user1
+        self.reservation_user1 = StudyRoomReservation.objects.create(
+            student=self.user1,
+            study_room=self.study_room,
         )
 
-        response = self.client.get(self.url)
-
-        # The API should reject the invalid token.
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_401_UNAUTHORIZED
+        # Reservation belonging to user2
+        self.reservation_user2 = StudyRoomReservation.objects.create(
+            student=self.user2,
+            study_room=self.study_room,
         )
+
+        # URLs required by BaseUserOwnedResourceTest
+        self.list_url = reverse('studyroomreservation-list')
+        self.detail_url_user1 = reverse(
+            'studyroomreservation-detail',
+            kwargs={'pk': self.reservation_user1.pk}
+        )
+        self.detail_url_user2 = reverse(
+            'studyroomreservation-detail',
+            kwargs={'pk': self.reservation_user2.pk}
+        )
+
+    def test_perform_create_assigns_logged_in_user(self):
+        """Verify perform_create enforces the authenticated user as the reservation owner."""
+        self.client.force_authenticate(user=self.user1)
+
+        payload = {
+            'study_room': self.study_room.pk,
+            # Attempting to assign the reservation to user2
+            'student': self.user2.pk,
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_reservation = StudyRoomReservation.objects.get(id=response.data['id'])
+        # Verify the backend overrode the payload value with request.user
+        self.assertEqual(created_reservation.student, self.user1)
+
+
+# ==============================================================================
+# NEWS TESTS (IsAdminOrReadOnly PERMISSION)
+# ==============================================================================
+
+class NewsViewSetTests(APITestCase):
+    def setUp(self):
+        # Regular student (non-staff)
+        self.regular_user = Student.objects.create_user(
+            username="student_user",
+            password="password123",
+            is_staff=False,
+        )
+
+        # Admin / Staff user
+        self.admin_user = Student.objects.create_user(
+            username="admin_user",
+            password="password123",
+            is_staff=True,
+        )
+
+        # Existing news fixture
+        self.news = News.objects.create(
+            title="Building Maintenance",
+            content="Elevator maintenance scheduled for tomorrow morning.",
+        )
+
+        self.list_url = reverse('news-list')
+        self.detail_url = reverse('news-detail', kwargs={'pk': self.news.pk})
+
+    # --- Read Operations (Public / Safe Methods) ---
+
+    def test_unauthenticated_user_can_list_news(self):
+        """Verify anonymous users can access the news list (GET)."""
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_unauthenticated_user_can_retrieve_news_detail(self):
+        """Verify anonymous users can read a specific news article (GET)."""
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.news.pk)
+
+    # --- Write Operations: Non-Staff Access Rejection ---
+
+    def test_unauthenticated_user_cannot_create_news(self):
+        """Verify anonymous users cannot publish news (POST)."""
+        payload = {'title': 'Spam Title', 'content': 'Spam Content'}
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_regular_user_cannot_create_news(self):
+        """Verify authenticated non-staff users cannot publish news (POST)."""
+        self.client.force_authenticate(user=self.regular_user)
+
+        payload = {'title': 'Student Post', 'content': 'Party tonight!'}
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(News.objects.filter(title='Student Post').exists())
+
+    def test_regular_user_cannot_modify_news(self):
+        """Verify authenticated non-staff users cannot modify news (PATCH)."""
+        self.client.force_authenticate(user=self.regular_user)
+
+        response = self.client.patch(
+            self.detail_url,
+            {'title': 'Tampered Title'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.news.refresh_from_db()
+        self.assertNotEqual(self.news.title, 'Tampered Title')
+
+    def test_regular_user_cannot_delete_news(self):
+        """Verify authenticated non-staff users cannot delete news (DELETE)."""
+        self.client.force_authenticate(user=self.regular_user)
+
+        response = self.client.delete(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(News.objects.filter(pk=self.news.pk).exists())
+
+    # --- Write Operations: Staff Access Authorization ---
+
+    def test_staff_user_can_create_news(self):
+        """Verify staff members can successfully create a news article (POST)."""
+        self.client.force_authenticate(user=self.admin_user)
+
+        payload = {
+            'title': 'New Cafeteria Menu',
+            'content': 'Check out our new weekly schedule.',
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(News.objects.filter(title='New Cafeteria Menu').exists())
+
+    def test_staff_user_can_modify_news(self):
+        """Verify staff members can modify an existing news article (PATCH)."""
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.patch(
+            self.detail_url,
+            {'title': 'Updated Maintenance Notice'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.news.refresh_from_db()
+        self.assertEqual(self.news.title, 'Updated Maintenance Notice')
+
+    def test_staff_user_can_delete_news(self):
+        """Verify staff members can delete an existing news article (DELETE)."""
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(News.objects.filter(pk=self.news.pk).exists())

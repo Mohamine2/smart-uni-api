@@ -19,8 +19,20 @@ class SmartDeviceSerializer(serializers.ModelSerializer):
             'room'
         ]
 
-class StudyRoomReservationSerializer(serializers.ModelSerializer):
+    def validate_room(self, value):
+        """
+        Verify that the specified item belongs to the authenticated user.
+        """
+        user = self.context['request'].user
 
+        # If the user is not the owner of the apartment linked to this room
+        if value.apartment.occupant != user:
+            raise serializers.ValidationError(
+                "You cannot assign a device to a room that does not belong to you."
+            )
+        return value
+
+class StudyRoomReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudyRoomReservation
         fields = [
@@ -55,3 +67,15 @@ class StudyRoomReservationSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = [
+            'id',
+            'title',
+            'content',
+            'image',
+            'publication_date',
+            'category'
+        ]

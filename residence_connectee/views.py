@@ -7,11 +7,13 @@ from functools import wraps
 from django.db.models import Sum, Q
 from decimal import Decimal
 from rest_framework import viewsets
+from rest_framework.permissions import BasePermission, SAFE_METHODS
+
 
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, ManageDeviceForm, ProfileEditForm, \
     RoomReservationForm
-from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer
+from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer
 
 
 class SmartDeviceViewSet(viewsets.ModelViewSet):
@@ -30,6 +32,23 @@ class StudyRoomReservationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(student=self.request.user)
+
+class IsAdminOrReadOnly(BasePermission):
+    def has_permission(self, request, view):
+        # SAFE_METHODS are read-only HTTP methods: GET, HEAD and OPTIONS.
+        # These methods are allowed for all users.
+        if request.method in SAFE_METHODS:
+            return True
+
+        # Any write operation (POST, PUT, PATCH, DELETE) requires
+        # the user to have administrator privileges (is_staff=True).
+        return request.user and request.user.is_staff
+
+class NewsViewSet(viewsets.ModelViewSet):
+    serializer_class = NewsSerializer
+    queryset = News.objects.all()
+    permission_classes = [IsAdminOrReadOnly]
+
 
 
 
