@@ -1,6 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from decimal import Decimal
 
 from .models import (
     Apartment,
@@ -319,3 +320,37 @@ class NewsViewSetTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(News.objects.filter(pk=self.news.pk).exists())
+
+    def test_authenticated_user_earns_browsing_points_on_retrieve(self):
+        """Verify that a logged-in student earns 0.50 points when viewing an article."""
+        self.client.force_authenticate(user=self.regular_user)
+        initial_points = self.regular_user.browsing_points
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.regular_user.refresh_from_db()
+        self.assertEqual(
+            self.regular_user.browsing_points,
+            initial_points + Decimal('0.50')
+        )
+
+    def test_unauthenticated_user_retrieve_does_not_crash(self):
+        """Verify that an anonymous user can read an article without browsing_points errors."""
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_filter_news_by_search_keyword(self):
+        """Verify text search by title or content."""
+        News.objects.create(
+            title="Power Outage",
+            content="2 hours maintenance"
+        )
+
+        # Search for the "Power" keyword
+        response = self.client.get(f"{self.list_url}?search=Power")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['title'], "Power Outage")

@@ -4,10 +4,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from functools import wraps
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, F
 from decimal import Decimal
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
@@ -47,9 +48,40 @@ class IsAdminOrReadOnly(BasePermission):
 class NewsViewSet(viewsets.ModelViewSet):
     serializer_class = NewsSerializer
     queryset = News.objects.all()
+
     permission_classes = [IsAdminOrReadOnly]
 
+    # Enable the three standard filtering mechanisms:
+    # - DjangoFilterBackend: exact field filtering
+    # - SearchFilter: text-based search
+    # - OrderingFilter: sorting results
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter
+    ]
 
+    # 1. Exact filtering by category:
+    filterset_fields = ['category']
+
+    # 2. Case-insensitive text search in the title and content:
+    search_fields = ['title', 'content']
+
+    # 3. Allow clients to sort by publication date:
+    ordering_fields = ['publication_date']
+
+    # Sort by publication date in descending order by default.
+    ordering = ['-publication_date']
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+
+        if request.user.is_authenticated:
+            type(request.user).objects.filter(pk=request.user.pk).update(
+                browsing_points=F('browsing_points') + Decimal('0.50')
+            )
+
+        return response
 
 
 # --- 1. HOME & NEWS MODULE ---

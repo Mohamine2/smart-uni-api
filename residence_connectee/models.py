@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 class Student(AbstractUser):
     phone_number = models.CharField(max_length=30, blank=True, null=True)
@@ -23,7 +24,11 @@ class Student(AbstractUser):
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='Beginner')
 
     login_points = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    browsing_points = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    browsing_points = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
 
     @property
     def total_points(self):
