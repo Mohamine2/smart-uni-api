@@ -34,6 +34,10 @@ class StudyRoomReservationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(student=self.request.user)
 
+        type(self.request.user).objects.filter(pk=self.request.user.pk).update(
+            browsing_points=F('browsing_points') + Decimal('0.50')
+        )
+
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         # SAFE_METHODS are read-only HTTP methods: GET, HEAD and OPTIONS.

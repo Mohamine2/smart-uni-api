@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from decimal import Decimal
+from datetime import date, time
 
 from .models import (
     Apartment,
@@ -194,6 +195,30 @@ class StudyRoomReservationViewSetTests(BaseUserOwnedResourceTest):
         created_reservation = StudyRoomReservation.objects.get(id=response.data['id'])
         # Verify the backend overrode the payload value with request.user
         self.assertEqual(created_reservation.student, self.user1)
+
+    def test_cannot_book_overlapping_slot(self):
+        """Prevents the creation of a reservation that overlaps with an existing time slot."""
+        StudyRoomReservation.objects.create(
+            student=self.user2,
+            study_room=self.study_room,
+            reservation_date=date(2026, 9, 1),
+            start_time=time(14,0),
+            end_time=time(16, 0),
+        )
+
+        self.client.force_authenticate(user=self.user1)
+
+        # Overlapping booking attempt: 3 PM – 5 PM
+        payload = {
+            'study_room': self.study_room.pk,
+            'reservation_date': '2026-09-01',
+            'start_time': '15:00:00',
+            'end_time': '17:00:00',
+        }
+
+        response = self.user1.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 # ==============================================================================

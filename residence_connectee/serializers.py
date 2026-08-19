@@ -46,25 +46,35 @@ class StudyRoomReservationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'student']
 
     def validate(self, attrs):
-        if attrs['start_time'] >= attrs['end_time']:
-            raise serializers.ValidationError(
-                "The end date must be later than the start date."
+        # Retrieve values from incoming payload, falling back to existing instance data (useful for PATCH)
+        study_room = attrs.get('study_room', getattr(self.instance, 'study_room', None))
+        date = attrs.get('reservation_date', getattr(self.instance, 'reservation_date', None))
+        start_time = attrs.get('start_time', getattr(self.instance, 'start_time', None))
+        end_time = attrs.get('end_time', getattr(self.instance, 'end_time', None))
+
+        # 1. Chronological order check
+        if start_time and end_time and start_time >= end_time:
+            raise serializers.ValidationError({
+                'end_time': "End time must be later than start time."
+            })
+
+        # 2. Overlapping reservation check
+        if study_room and date and start_time and end_time:
+            conflicts = StudyRoomReservation.objects.filter(
+                study_room=study_room,
+                reservation_date=date,
+                start_time__lt=end_time,
+                end_time__gt=start_time,
             )
 
-        conflict = StudyRoomReservation.objects.filter(
-            study_room=attrs['study_room'],
-            reservation_date=attrs['reservation_date'],
-        ).filter(
-            Q(
-                start_time__lt=attrs['end_time'],
-                end_time__gt=attrs['start_time'],
-            )
-        ).exists()
+            # Ignore the current instance when updating (PATCH / PUT)
+            if self.instance:
+                conflicts = conflicts.exclude(pk=self.instance.pk)
 
-        if conflict:
-            raise serializers.ValidationError(
-                "This study room is already reserved during this time slot."
-            )
+            if conflicts.exists():
+                raise serializers.ValidationError(
+                    "This study room is already booked during the selected time slot."
+                )
 
         return attrs
 
