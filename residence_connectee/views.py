@@ -16,7 +16,7 @@ from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReserv
 from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, ManageDeviceForm, ProfileEditForm, \
     RoomReservationForm
 from .permissions import IsAdminOrReadOnly, HasDeviceLevelPermission
-from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer
+from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer, StudyRoomSerializer
 
 
 class SmartDeviceViewSet(viewsets.ModelViewSet):
@@ -69,6 +69,21 @@ class SmartDeviceViewSet(viewsets.ModelViewSet):
             'total_power_consumption': stats['total_consumption'] or 0.0,
             'average_power_consumption': stats['average_consumption'] or 0.0,
         }, status=status.HTTP_200_OK)
+
+class StudyRoomViewSet(viewsets.ModelViewSet):
+    queryset = StudyRoom.objects.all()
+    serializer_class = StudyRoomSerializer
+    permission_classes=[IsAdminOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+
+    filterset_fields = {
+        'capacity': ['exact', 'gte', 'lte'],
+    }
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'capacity']
+    ordering = ['name']
+
 
 class StudyRoomReservationViewSet(viewsets.ModelViewSet):
     serializer_class = StudyRoomReservationSerializer

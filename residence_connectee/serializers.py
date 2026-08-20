@@ -37,6 +37,22 @@ class SmartDeviceSerializer(serializers.ModelSerializer):
 
         return attrs
 
+class StudyRoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudyRoom
+        fields = [
+            'id',
+            'name',
+            'capacity',
+            'description'
+        ]
+
+    def validate_capacity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Capacity must be strictly greater than 0.")
+        return value
+
+
 class StudyRoomReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudyRoomReservation

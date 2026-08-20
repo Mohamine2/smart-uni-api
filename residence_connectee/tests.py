@@ -218,8 +218,111 @@ class SmartDeviceViewSetTests(BaseUserOwnedResourceTest, APITestCase):
 
 
 # ==============================================================================
-# STUDY ROOM RESERVATION TESTS
+# STUDY ROOM TESTS
 # ==============================================================================
+
+class StudyRoomViewSetTests(APITestCase):
+    def setUp(self):
+        # Regular student
+        self.regular_user = Student.objects.create_user(
+            username='student1',
+            password='password123',
+            level=Student.Level.BEGINNER
+        )
+
+        # Admin / Staff user
+        self.admin_user = Student.objects.create_user(
+            username='admin_staff',
+            password='password123',
+            is_staff=True
+        )
+
+        # Base StudyRoom instances
+        self.room_a = StudyRoom.objects.create(
+            name="Silent Room A",
+            capacity=4,
+            description="Quiet workspace with monitors."
+        )
+        self.room_b = StudyRoom.objects.create(
+            name="Group Lab B",
+            capacity=12,
+            description="Collaborative space with projector."
+        )
+
+        self.list_url = reverse('studyroom-list')
+        self.detail_url = reverse('studyroom-detail', kwargs={'pk': self.room_a.pk})
+
+    def test_unauthenticated_user_can_list_and_retrieve_study_rooms(self):
+        """Anyone can browse and inspect study rooms."""
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+        response_detail = self.client.get(self.detail_url)
+        self.assertEqual(response_detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_detail.data['name'], "Silent Room A")
+
+    def test_regular_student_cannot_create_or_modify_study_room(self):
+        """Regular students are forbidden from mutating study rooms."""
+        self.client.force_authenticate(user=self.regular_user)
+
+        payload = {'name': 'Unauthorized Room', 'capacity': 6, 'description': 'Test'}
+        create_res = self.client.post(self.list_url, payload, format='json')
+        self.assertEqual(create_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        patch_res = self.client.patch(self.detail_url, {'capacity': 10}, format='json')
+        self.assertEqual(patch_res.status_code, status.HTTP_403_FORBIDDEN)
+
+        delete_res = self.client.delete(self.detail_url)
+        self.assertEqual(delete_res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create_update_and_delete_study_room(self):
+        """Staff members have full CRUD permissions."""
+        self.client.force_authenticate(user=self.admin_user)
+
+        # 1. Create
+        payload = {
+            'name': 'Innovation Hub',
+            'capacity': 8,
+            'description': 'Whiteboards and VR sets.'
+        }
+        create_res = self.client.post(self.list_url, payload, format='json')
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
+        new_room_id = create_res.data['id']
+
+        # 2. Update
+        detail_url = reverse('studyroom-detail', kwargs={'pk': new_room_id})
+        patch_res = self.client.patch(detail_url, {'capacity': 10}, format='json')
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data['capacity'], 10)
+
+        # 3. Delete
+        delete_res = self.client.delete(detail_url)
+        self.assertEqual(delete_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(StudyRoom.objects.filter(pk=new_room_id).exists())
+
+    def test_create_study_room_with_invalid_capacity_fails(self):
+        """Capacity must be greater than 0."""
+        self.client.force_authenticate(user=self.admin_user)
+        payload = {'name': 'Invalid Room', 'capacity': 0, 'description': 'Zero cap'}
+
+        response = self.client.post(self.list_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('capacity', response.data)
+
+    def test_filter_and_search_study_rooms(self):
+        """Verify search query parameter and capacity filtering."""
+        # Search by keyword
+        search_res = self.client.get(f"{self.list_url}?search=Collaborative")
+        self.assertEqual(search_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(search_res.data), 1)
+        self.assertEqual(search_res.data[0]['name'], "Group Lab B")
+
+        # Filter by capacity greater than or equal to 10
+        filter_res = self.client.get(f"{self.list_url}?capacity__gte=10")
+        self.assertEqual(filter_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(filter_res.data), 1)
+        self.assertEqual(filter_res.data[0]['capacity'], 12)
 
 class StudyRoomReservationViewSetTests(BaseUserOwnedResourceTest):
     def setup_resource_data(self):
