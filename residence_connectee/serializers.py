@@ -14,13 +14,21 @@ class StudentSerializer(serializers.ModelSerializer):
             'level', 'login_points', 'browsing_points', 'total_points'
         ]
 
-        # Sécurité critique : empêcher la triche sur la gamification
         read_only_fields = [
             'level',
             'login_points',
             'browsing_points',
-            'student_id'  # Généralement, on ne modifie pas son ID étudiant soi-même
+            'student_id'
         ]
+
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+        def create(self, validated_data):
+            """Surcharge de la création pour hacher le mot de passe."""
+            user = Student.objects.create_user(**validated_data)
+            return user
 
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:

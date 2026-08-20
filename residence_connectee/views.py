@@ -7,7 +7,7 @@ from functools import wraps
 from django.db.models import Sum, Q, F, Avg
 from decimal import Decimal
 from rest_framework import viewsets, filters, status
-from rest_framework.permissions import BasePermission, SAFE_METHODS, IsAuthenticated
+from rest_framework.permissions import BasePermission, SAFE_METHODS, IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -35,6 +35,12 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Student.objects.all()
         return Student.objects.filter(pk=self.request.user.pk)
 
+    def get_permissions(self):
+        """Allow unauthenticated users to register (POST). Everything else requires auth."""
+        if self.action == 'create':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
     @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
         """Endpoint of convenience for the frontend to access /api/students/me/"""
@@ -49,6 +55,33 @@ class StudentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def level_up(self, request):
+        """Allows the student to claim the next gamification level based on total points."""
+        user = request.user
+        points = user.total_points
+
+        if user.level == Student.Level.BEGINNER and points >= 3:
+            user.level = Student.Level.INTERMEDIATE
+            user.save(update_fields=['level'])
+            return Response({"message": "Level up! You are now Intermediate."}, status=status.HTTP_200_OK)
+
+        elif user.level == Student.Level.INTERMEDIATE and points >= 5:
+            user.level = Student.Level.ADVANCED
+            user.save(update_fields=['level'])
+            return Response({"message": "Level up! You are now Advanced."}, status=status.HTTP_200_OK)
+
+        elif user.level == Student.Level.ADVANCED and points >= 7:
+            # Assuming you add EXPERT = 4 in your IntegerChoices
+            user.level = 4
+            user.save(update_fields=['level'])
+            return Response({"message": "Level up! You are now an Expert."}, status=status.HTTP_200_OK)
+
+        return Response(
+            {"error": "Not enough points to level up, or max level already reached."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer
