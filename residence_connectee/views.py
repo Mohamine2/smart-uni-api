@@ -18,8 +18,37 @@ from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, M
     RoomReservationForm
 from .permissions import IsAdminOrReadOnly, HasDeviceLevelPermission
 from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer, StudyRoomSerializer, \
-    RoomSerializer, ApartmentSerializer
+    RoomSerializer, ApartmentSerializer, StudentSerializer
 
+
+class StudentViewSet(viewsets.ModelViewSet):
+    """
+    User profile management.
+    - Regular students can only access their own profile.
+    - Staff members can view and manage all students.
+    """
+    serializer_class = StudentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return Student.objects.all()
+        return Student.objects.filter(pk=self.request.user.pk)
+
+    @action(detail=False, methods=['get', 'patch', 'put'])
+    def me(self, request):
+        """Endpoint of convenience for the frontend to access /api/students/me/"""
+        student = request.user
+
+        if request.method == 'GET':
+            serializer = self.get_serializer(student)
+            return Response(serializer.data)
+
+        # Handling PATCH / PUT
+        serializer = self.get_serializer(student, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer

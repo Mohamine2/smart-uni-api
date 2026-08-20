@@ -15,13 +15,6 @@ class Student(AbstractUser):
     ]
     sex = models.CharField(max_length=1, choices=GENDER_CHOICES, null=True, blank=True)
 
-    LEVEL_CHOICES = [
-        ('Beginner', 'Beginner'),
-        ('Intermediate', 'Intermediate'),
-        ('Advanced', 'Advanced'),
-        ('Expert', 'Expert'),
-    ]
-
     class Level(models.IntegerChoices):
         BEGINNER = 1, 'Beginner'
         INTERMEDIATE = 2, 'Intermediate'
@@ -32,7 +25,11 @@ class Student(AbstractUser):
         default=Level.BEGINNER
     )
 
-    login_points = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    login_points = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
     browsing_points = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -42,11 +39,6 @@ class Student(AbstractUser):
     @property
     def total_points(self):
         return self.login_points + self.browsing_points
-
-    @property
-    def level_value(self):
-        values = {'Beginner': 0, 'Intermediate': 1, 'Advanced': 2, 'Expert': 3}
-        return values.get(self.level, 0)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - Level: {self.level} ({self.total_points} pts)"

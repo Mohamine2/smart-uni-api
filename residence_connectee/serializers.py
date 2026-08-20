@@ -3,6 +3,24 @@ from rest_framework import serializers
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 
 
+class StudentSerializer(serializers.ModelSerializer):
+    total_points = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Student
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'phone_number', 'student_id', 'age', 'sex',
+            'level', 'login_points', 'browsing_points', 'total_points'
+        ]
+
+        # Sécurité critique : empêcher la triche sur la gamification
+        read_only_fields = [
+            'level',
+            'login_points',
+            'browsing_points',
+            'student_id'  # Généralement, on ne modifie pas son ID étudiant soi-même
+        ]
 
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:

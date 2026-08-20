@@ -83,6 +83,75 @@ class BaseUserOwnedResourceTest():
 
 
 # ==============================================================================
+# USER (STUDENT) TESTS
+# ==============================================================================
+
+class StudentViewSetTests(APITestCase):
+    def setUp(self):
+        self.user1 = Student.objects.create_user(
+            username='johndoe',
+            password='password123',
+            student_id='ID123',
+            level=Student.Level.BEGINNER,
+            browsing_points=Decimal('10.00')
+        )
+        self.user2 = Student.objects.create_user(
+            username='janedoe',
+            password='password123',
+            student_id='ID456'
+        )
+
+        self.list_url = reverse('student-list')
+        self.me_url = reverse('student-me')
+        self.detail_url_user2 = reverse('student-detail', kwargs={'pk': self.user2.pk})
+
+    def test_student_can_fetch_and_update_own_profile_via_me_endpoint(self):
+        """Verify the /me/ endpoint returns and updates the logged-in user."""
+        self.client.force_authenticate(user=self.user1)
+
+        # GET /me/
+        get_res = self.client.get(self.me_url)
+        self.assertEqual(get_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_res.data['username'], 'johndoe')
+
+        # PATCH /me/
+        patch_res = self.client.patch(self.me_url, {'first_name': 'John'}, format='json')
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.first_name, 'John')
+
+    def test_student_cannot_forge_gamification_points(self):
+        """Verify that attempting to inject points via PATCH is ignored by read_only_fields."""
+        self.client.force_authenticate(user=self.user1)
+
+        initial_points = self.user1.browsing_points
+
+        # Attempting to cheat by sending 5000 points
+        payload = {
+            'browsing_points': '5000.00',
+            'level': 3
+        }
+        response = self.client.patch(self.me_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user1.refresh_from_db()
+
+        # Values must remain unchanged
+        self.assertEqual(self.user1.browsing_points, initial_points)
+        self.assertEqual(self.user1.level, Student.Level.BEGINNER)
+
+    def test_student_cannot_access_other_profiles(self):
+        """Verify that get_queryset isolates records from other standard users."""
+        self.client.force_authenticate(user=self.user1)
+
+        # Attempt to access user2's detail page
+        response = self.client.get(self.detail_url_user2)
+
+        # Should be 404 because user2 is excluded from user1's queryset
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+# ==============================================================================
 # ROOM/APARTMENT TESTS
 # ==============================================================================
 
