@@ -7,17 +7,48 @@ from functools import wraps
 from django.db.models import Sum, Q, F, Avg
 from decimal import Decimal
 from rest_framework import viewsets, filters, status
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission, SAFE_METHODS, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
+from . import permissions
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 from .forms import StudentRegistrationForm, SmartDeviceForm, RenameDeviceForm, ManageDeviceForm, ProfileEditForm, \
     RoomReservationForm
 from .permissions import IsAdminOrReadOnly, HasDeviceLevelPermission
-from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer, StudyRoomSerializer
+from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer, StudyRoomSerializer, \
+    RoomSerializer, ApartmentSerializer
 
+
+class RoomViewSet(viewsets.ModelViewSet):
+    serializer_class = RoomSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['name', 'apartment']
+    search_fields = ['name']
+    ordering_fields = ['name']
+
+    def get_queryset(self):
+        return Room.objects.filter(
+            apartment__occupant=self.request.user
+        ).select_related('apartment')
+
+class ApartmentViewSet(viewsets.ModelViewSet):
+    serializer_class = ApartmentSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['apartment_number']
+    search_fields = ['address', 'apartment_number']
+    ordering_fields = ['apartment_number']
+
+    def get_queryset(self):
+        return Apartment.objects.filter(
+            occupant=self.request.user
+        ).prefetch_related('rooms')
+
+    def perform_create(self, serializer):
+        serializer.save(occupant=self.request.user)
 
 class SmartDeviceViewSet(viewsets.ModelViewSet):
     serializer_class = SmartDeviceSerializer

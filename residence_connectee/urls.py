@@ -1,8 +1,11 @@
 from rest_framework import routers
-from .views import SmartDeviceViewSet, StudyRoomViewSet,StudyRoomReservationViewSet, NewsViewSet
+from .views import SmartDeviceViewSet, StudyRoomViewSet, StudyRoomReservationViewSet, NewsViewSet, ApartmentViewSet, \
+    RoomViewSet
 
 router = routers.DefaultRouter()
 
+router.register(r'apartments', ApartmentViewSet, basename='apartment')
+router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r"smart-devices", SmartDeviceViewSet)
 router.register(r'study-rooms', StudyRoomViewSet, basename='studyroom')
 router.register(r"study-room-reservations", StudyRoomReservationViewSet)

@@ -83,6 +83,91 @@ class BaseUserOwnedResourceTest():
 
 
 # ==============================================================================
+# ROOM/APARTMENT TESTS
+# ==============================================================================
+
+class ApartmentViewSetTests(BaseUserOwnedResourceTest, APITestCase):
+    def setup_resource_data(self):
+        self.apartment_user1 = Apartment.objects.create(
+            address="10 Rue de la Paix, Cergy",
+            apartment_number="A101",
+            occupant=self.user1
+        )
+        self.apartment_user2 = Apartment.objects.create(
+            address="12 Boulevard de l'Oise, Cergy",
+            apartment_number="B202",
+            occupant=self.user2
+        )
+
+        self.list_url = reverse('apartment-list')
+        self.detail_url_user1 = reverse('apartment-detail', kwargs={'pk': self.apartment_user1.pk})
+        self.detail_url_user2 = reverse('apartment-detail', kwargs={'pk': self.apartment_user2.pk})
+
+    def test_owner_can_modify_own_apartment(self):
+        """Ensure occupant can update their apartment address."""
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.patch(
+            self.detail_url_user1,
+            {'address': 'New Address 42'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.apartment_user1.refresh_from_db()
+        self.assertEqual(self.apartment_user1.address, 'New Address 42')
+
+
+class RoomViewSetTests(BaseUserOwnedResourceTest, APITestCase):
+    def setup_resource_data(self):
+        self.apt_user1 = Apartment.objects.create(
+            address="10 Rue de la Paix",
+            apartment_number="A101",
+            occupant=self.user1
+        )
+        self.apt_user2 = Apartment.objects.create(
+            address="12 Boulevard de l'Oise",
+            apartment_number="B202",
+            occupant=self.user2
+        )
+
+        self.room_user1 = Room.objects.create(
+            name="Bedroom",
+            apartment=self.apt_user1
+        )
+        self.room_user2 = Room.objects.create(
+            name="Living Room",
+            apartment=self.apt_user2
+        )
+
+        self.list_url = reverse('room-list')
+        self.detail_url_user1 = reverse('room-detail', kwargs={'pk': self.room_user1.pk})
+        self.detail_url_user2 = reverse('room-detail', kwargs={'pk': self.room_user2.pk})
+
+    def test_cannot_create_room_in_another_users_apartment(self):
+        """Prevent IDOR when attempting to attach a room to an unauthorized apartment."""
+        self.client.force_authenticate(user=self.user1)
+        payload = {
+            'name': 'Kitchen',
+            'apartment': self.apt_user2.pk  # User 2's apartment
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('apartment', response.data)
+
+    def test_create_room_in_own_apartment_success(self):
+        """Occupant can create a room inside their own apartment."""
+        self.client.force_authenticate(user=self.user1)
+        payload = {
+            'name': 'Bathroom',
+            'apartment': self.apt_user1.pk
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Room.objects.filter(name='Bathroom', apartment=self.apt_user1).exists())
+
+
+# ==============================================================================
 # SMART DEVICE TESTS
 # ==============================================================================
 

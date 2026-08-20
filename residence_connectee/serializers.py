@@ -2,6 +2,36 @@ from django.db.models import Q
 from rest_framework import serializers
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 
+
+
+class RoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = ['id', 'name', 'apartment']
+
+    def validate_apartment(self, value):
+        """IDOR protection: ensure the target apartment belongs to the authenticated student."""
+        user = self.context['request'].user
+        if value.occupant != user:
+            raise serializers.ValidationError(
+                "You cannot create or move a room into an apartment you do not occupy."
+            )
+        return value
+
+class ApartmentSerializer(serializers.ModelSerializer):
+    rooms = RoomSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Apartment
+        fields = [
+            'id',
+            'address',
+            'apartment_number',
+            'occupant',
+            'rooms'
+        ]
+        read_only_fields = ['occupant']
+
 class SmartDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = SmartDevice
