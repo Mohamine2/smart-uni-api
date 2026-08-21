@@ -36,12 +36,12 @@ services:
       - media_volume:/app/mediafiles
     environment:
       - SECRET_KEY=${DJANGO_SECRET_KEY}
-      - ALLOWED_HOSTS=*
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DEBUG=False
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_NAME=residence_connectee_db
-      - DB_USER=uni_user
+      - DB_NAME=${DB_NAME:-residence_connectee_db}
+      - DB_USER=${DB_USER:-uni_user}
       - DB_PASSWORD=${DB_PASSWORD}
     expose:
       - "8000"
