@@ -5,3 +5,8 @@ GHSA-6v7p-g79w-8964
 # New vendored vulnerabilities in setuptools (jaraco.context and wheel)
 CVE-2026-23949
 CVE-2026-24049
+
+# Non-patchable/Unfixed vulnerabilities in sqlparse 0.5.5
+CVE-2026-54284
+CVE-2026-59893
+CVE-2026-71491
