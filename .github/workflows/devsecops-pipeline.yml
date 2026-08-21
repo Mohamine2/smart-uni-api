@@ -1,4 +1,4 @@
-name: CI/CD Pipeline- DevSecOps Smart-Uni
+name: CI/CD Pipeline - DevSecOps Smart-Uni API
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   # ==========================================
-  # 1. CI : BUILD & SECURE (TRIVY)
+  # 1. CI : BUILD, TEST & SECURE (TRIVY)
   # ==========================================
   build-and-secure:
     name: Build & Security Scan
@@ -28,8 +28,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          load: true # Keep the image locally (waiting for the scan)
-          tags: smart-uni:latest
+          load: true
+          tags: smart-uni-api:latest
 
       # 4. Run Tests
       - name: Run Unit & Integration Tests
@@ -37,21 +37,22 @@ jobs:
           docker run --rm \
             -e SECRET_KEY="ci-test-key-safe-for-github-actions" \
             -e USE_SQLITE="True" \
-            smart-uni:latest \
+            smart-uni-api:latest \
             coverage run manage.py test residence_connectee
 
       # 5. Trivy Scan
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'smart-uni:latest'
+          image-ref: 'smart-uni-api:latest'
           format: 'table'
-          exit-code: 1 # Fail fast if a vulnerability is found
-          ignore-unfixed : true
+          exit-code: 1
+          ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+          trivyignores: '.trivyignore'
 
-      #  DockerHub Login
+      # 6. DockerHub Login
       - name: Login to DockerHub
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -59,19 +60,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 6. Final image push
+      # 7. Final image push
       - name: Push Docker Image to Registry
         if: github.event_name == 'push'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # ${{ github.sha }} tag link the image to the associated image
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/smart-uni:${{ github.sha }}, ${{ secrets.DOCKERHUB_USERNAME }}/smart-uni:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smart-uni-api:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/smart-uni-api:latest
 
-    # ==========================================
-    # CD : CONTINUOUS DEPLOYMENT (AWS SSM)
-    # ==========================================
+  # ==========================================
+  # 2. CD : CONTINUOUS DEPLOYMENT (AWS SSM)
+  # ==========================================
   deploy:
     name: Deploy to AWS EC2
     needs: build-and-secure
@@ -94,22 +96,18 @@ jobs:
           BASE64_COMPOSE=$(base64 -w 0 docker-compose.prod.yml)
           BASE64_ENV=$(echo "${{ secrets.ENV_FILE_CONTENT }}" | base64 -w 0)
           BASE64_NGINX=$(base64 -w 0 docker/nginx/default.conf)
-            
+          
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=tag:Name,Values=smart-uni-server" \
             --comment "Automated deployment after DevSecOps validation" \
             --parameters "commands=[
-    
-              \"mkdir -p /home/ubuntu/smart-uni/docker/nginx\",
-              \"cd /home/ubuntu/smart-uni\",
-            
+              \"mkdir -p /home/ubuntu/smart-uni-api/docker/nginx\",
+              \"cd /home/ubuntu/smart-uni-api\",
               \"echo '$BASE64_COMPOSE' | base64 -d > docker-compose.yml\",
               \"echo '$BASE64_ENV' | base64 -d > .env\",
               \"echo '$BASE64_NGINX' | base64 -d > docker/nginx/default.conf\",
-            
               \"docker compose down --remove-orphans || true\",
-            
               \"docker compose pull -q\",
               \"docker compose up -d --force-recreate\"
             ]"

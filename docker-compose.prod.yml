@@ -1,5 +1,5 @@
 services:
-  # MYSQL DATABASE
+  # --- 1. DATABASE ---
   db:
     image: mysql:8.0
     container_name: smart_uni_db
@@ -11,12 +11,17 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - smart_network
 
-  # DJANGO APP (GUNICORN)
+  # --- 2. DJANGO API (GUNICORN) ---
   web:
-    image: mohamine2/smart-uni:latest
+    image: mohamine2/smart-uni-api:latest
     container_name: smart_uni_web
     restart: always
     command: >
@@ -25,7 +30,7 @@ services:
              python populate_students.py &&
              python populate_study_rooms.py &&
              python populate_news.py &&
-             gunicorn core.wsgi:application --bind 0.0.0.0:8000"
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/mediafiles
@@ -39,19 +44,20 @@ services:
       - DB_USER=uni_user
       - DB_PASSWORD=${DB_PASSWORD}
     expose:
-      - "8000" # Docker virtual network
+      - "8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - smart_network
 
-  # 3. NGINX SERVER
+  # --- 3. NGINX SERVER (REVERSE PROXY) ---
   nginx:
     image: nginx:latest
     container_name: smart_uni_nginx
     restart: always
     ports:
-      - "80:80" # Retrieve the EC2's public port
+      - "80:80"
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - static_volume:/app/staticfiles:ro

@@ -1,7 +1,8 @@
 services:
-  # --- BLOC BASE DE DONNÉES ---
+  # --- DATABASE ---
   db:
     image: mysql:8.0
+    container_name: smart_uni_db_dev
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -10,16 +11,16 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
-
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # --- BLOC DJANGO ---
+  # --- DJANGO API ---
   web:
     build: .
+    container_name: smart_uni_web_dev
     restart: on-failure
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
@@ -31,8 +32,10 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
+      - DB_PORT=3306
     depends_on:
       db:
         condition: service_healthy
+
 volumes:
   mysql_data:
