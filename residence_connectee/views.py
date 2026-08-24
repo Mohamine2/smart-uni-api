@@ -12,7 +12,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
-from . import permissions
 from .models import Student, News, SmartDevice, Room, StudyRoom, StudyRoomReservation, Apartment
 from .permissions import IsAdminOrReadOnly, HasDeviceLevelPermission
 from .serializers import SmartDeviceSerializer, StudyRoomReservationSerializer, NewsSerializer, StudyRoomSerializer, \
