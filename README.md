@@ -1,6 +1,6 @@
 # Smart-Uni API: Connected University Residence Backend
 
-[![CI/CD DevSecOps](https://github.com/Mohamine2/smart-uni-api/actions/workflows/ci-devsecops.yml/badge.svg)](https://github.com/Mohamine2/smart-uni-api/actions/workflows/ci-devsecops.yml)
+[![CI/CD DevSecOps](https://github.com/Mohamine2/smart-uni-api/actions/workflows/devsecops-pipeline.yml/badge.svg)](https://github.com/Mohamine2/smart-uni-api/actions/workflows/devsecops-pipeline.yml)
 [![Coverage](https://img.shields.io/badge/Coverage-≥80%25-brightgreen.svg)](https://github.com/Mohamine2/smart-uni-api)
 [![Security Scan: Trivy](https://img.shields.io/badge/Security-Trivy_Passing-blue.svg)](https://github.com/aquasecurity/trivy)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -182,7 +182,7 @@ docker compose exec web python populate_study_rooms.py
 ```text
 smart-uni-api/
 ├── .github/workflows/         # CI/CD Automation (Tests, Coverage, Trivy, Docker Hub)
-│   └── ci-devsecops.yml
+│   └── devsecops-pipeline.yml
 │
 ├── core/                      # Project configuration
 │   ├── settings.py            # Global settings (DRF, JWT, Swagger, CORS, Database)
