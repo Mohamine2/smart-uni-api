@@ -1,6 +1,6 @@
 # Smart-Uni API: Connected University Residence Backend
 
-[![CI/CD DevSecOps](https://github.com/Mohamine2/smart-uni-api/actions/workflows/devsecops-pipeline.yml/badge.svg)](https://github.com/Mohamine2/smart-uni-api/actions/workflows/devsecops-pipeline.yml)
+[![CI/CD DevSecOps](https://github.com/Mohamine2/smart-uni-api/actions/workflows/ci-devsecops.yml/badge.svg)](https://github.com/Mohamine2/smart-uni-api/actions/workflows/ci-devsecops.yml)
 [![Coverage](https://img.shields.io/badge/Coverage-≥80%25-brightgreen.svg)](https://github.com/Mohamine2/smart-uni-api)
 [![Security Scan: Trivy](https://img.shields.io/badge/Security-Trivy_Passing-blue.svg)](https://github.com/aquasecurity/trivy)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -82,13 +82,14 @@ This backend enforces enterprise-grade security and automated quality gating:
 - The application runtime executes strictly within this user context, preventing container breakout exploits.
 - Filesystem permissions are locked down exclusively to the `/app` workspace.
 
-### 2. Automated CI/CD Quality Gate (GitHub Actions)
+### 2. Automated CI/DevSecOps Quality Gate (GitHub Actions)
 The workflow `.github/workflows/ci-devsecops.yml` runs on every `push` and `pull_request` targeting `main`:
 
-- **Automated Build:** Validates Dockerfile compilation and multi-layer caching.
+- **Automated Build:** Validates Dockerfile compilation and multi-layer caching with an unprivileged runtime user.
 - **Automated Testing & Coverage:** Executes unit and integration test suites against an isolated in-memory SQLite database, enforcing a strict **80% minimum code coverage threshold** configured via `.coveragerc`.
 - **Vulnerability Scanning (Aqua Security Trivy):** Scans the `python:3.11-slim-bookworm` base image and transitive dependencies. It breaks the build (`exit code 1`) if unmitigated `HIGH` or `CRITICAL` CVEs are found.
-- **Image Publishing:** Pushes the verified production artifact to Docker Hub, tagged with the Git short-SHA commit hash.
+- **Image Publishing:** Pushes the verified, immutable production artifact to Docker Hub, tagged with the Git short-SHA commit hash and `latest`.
+- **Continuous Deployment Handshake:** Dispatches a secure `repository_dispatch` event to [smart-uni-infra](https://github.com/Mohamine2/smart-uni-infra) to trigger downstream automated server deployment.
 
 ---
 
