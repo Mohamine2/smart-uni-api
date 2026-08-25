@@ -65,7 +65,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/smart-uni-api:latest
 
   # ==========================================
-  # TRIGGER CD (Déclenche smart-uni-infra)
+  # TRIGGER CD (smart-uni-infra)
   # ==========================================
   trigger-cd:
     name: Trigger Deployment in Infra Repo
