@@ -196,13 +196,15 @@ smart-uni-api/
 │   ├── models.py              # ORM Entities (Student, Device, StudyRoom, Booking, News)
 │   ├── serializers.py         # DRF Serializers (Schema validation & JSON transforms)
 │   ├── permissions.py         # Custom DRF permissions for XP tiers
-│   ├── signals.py             # Event triggers (Automated XP attribution)
+│   ├── signals.py
 │   ├── tests.py               # Unit & API integration test suites
 │   └── views.py               # DRF ViewSets and APIViews
 │
 ├── Dockerfile                 # Hardened, unprivileged Python builder
-├── docker-compose.yml         # Local development orchestrator (API + MySQL)
-├── manage.py
+├── docker-compose.yml         # Local development orchestrator (DRF API + MySQL)
+├── docker-compose.prod.yml    # Production override/orchestrator (Gunicorn, Nginx)
+├── manage.py                  # Django CLI utility for administrative tasks and migrations
+├── .env.example               # Template for environment variables and secrets (DB credentials, secret keys)
 ├── requirements.txt           # Python dependencies (Django, DRF, SimpleJWT, MySQL driver)
 ├── .coveragerc                # Coverage enforcement configuration (>= 80%)
 ├── .trivyignore               # Security scan exception rules
