@@ -187,15 +187,22 @@ docker compose exec web python populate_study_rooms.py
 
 ```text
 smart-uni-api/
-├── .github/workflows/         # CI/CD Automation (Tests, Coverage, Trivy, Docker Hub)
-│   └── devsecops-pipeline.yml
+├── .github/workflows/         # CI Automation (Tests, Coverage, Trivy, Docker Hub)
+│   └── ci-devsecops.yml
 │
 ├── core/                      # Project configuration
 │   ├── settings.py            # Global settings (DRF, JWT, Swagger, CORS, Database)
 │   ├── urls.py                # Root routing, JWT auth endpoints & Swagger UI
 │   └── wsgi.py / asgi.py
 │
-├── residence_connectee/        # Main API application
+├── docker/                    # Container configuration files
+│   └── mysql/
+│       └── init.sql           # Database initialization and grant scripts
+│
+├── residence_connectee/       # Main API application
+│   ├── management/            # Custom Django management commands
+│   │   └── commands/
+│   │       └── seed_db.py     # Database seeding command (News, StudyRooms, Students, Devices)
 │   ├── migrations/            # Database migration history
 │   ├── admin.py               # Django Admin definitions
 │   ├── apps.py
@@ -208,13 +215,9 @@ smart-uni-api/
 │
 ├── Dockerfile                 # Hardened, unprivileged Python builder
 ├── docker-compose.yml         # Local development orchestrator (DRF API + MySQL)
-├── docker-compose.prod.yml    # Production override/orchestrator (Gunicorn, Nginx)
 ├── manage.py                  # Django CLI utility for administrative tasks and migrations
 ├── .env.example               # Template for environment variables and secrets (DB credentials, secret keys)
 ├── requirements.txt           # Python dependencies (Django, DRF, SimpleJWT, MySQL driver)
 ├── .coveragerc                # Coverage enforcement configuration (>= 80%)
-├── .trivyignore               # Security scan exception rules
-├── populate_students.py       # Seed script: Student profiles
-├── populate_news.py           # Seed script: Residence bulletins
-└── populate_study_rooms.py    # Seed script: Study rooms & schedules
+└── .trivyignore               # Security scan exception rules
 ```
