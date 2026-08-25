@@ -30,6 +30,11 @@ While the original university project was a monolithic Django web application (c
 * **`smart-uni-api` (this repository)**: REST endpoints, serialization layers, business logic, ORM models, custom permissions, and automated test suites.
 * **`smart-uni-infra`**: Infrastructure as Code, container orchestration, networking, and cloud delivery pipelines.
 
+To understand how the application components interact when deployed via the infrastructure repository, here is the architecture diagram:
+
+<img width="1230" height="1194" alt="image" src="https://github.com/user-attachments/assets/552bc94b-bafd-4198-8f7b-ff2fa32d4b03" />
+
+
 ---
 
 ## 🔐 Authentication & API Endpoints
