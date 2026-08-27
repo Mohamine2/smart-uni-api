@@ -176,11 +176,9 @@ docker compose exec web python manage.py createsuperuser
 ```
 
 ### 7. Seeding Mock Data (Development & Testing)
-To instantly populate your local instance with deterministic, realistic data records (mock student profiles, pre-configured study rooms, smart devices, and structured bulletin stories), execute the seeding scripts:
+To instantly populate your local instance with deterministic, realistic data records (mock student profiles, pre-configured study rooms, smart devices, and structured bulletin stories), execute the seeding script:
 ```bash
-docker compose exec web python populate_students.py
-docker compose exec web python populate_news.py
-docker compose exec web python populate_study_rooms.py
+docker compose exec web python manage.py seed_db
 ```
 
 ## 📂 Project Structure
