@@ -5,6 +5,7 @@
 [![Security Scan: Trivy](https://img.shields.io/badge/Security-Trivy_Passing-blue.svg)](https://github.com/aquasecurity/trivy)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-DRF-092E20.svg?logo=django&logoColor=white)](https://www.django-rest-framework.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -32,8 +33,7 @@ While the original university project was a monolithic Django web application (c
 
 To understand how the application components interact when deployed via the infrastructure repository, here is the architecture diagram:
 
-<img width="1230" height="1194" alt="image" src="https://github.com/user-attachments/assets/552bc94b-bafd-4198-8f7b-ff2fa32d4b03" />
-
+<img width="1600" height="1600" alt="image" src="https://github.com/user-attachments/assets/2d7281b4-6749-4806-b198-5675f163c673" />
 
 ---
 
@@ -122,7 +122,7 @@ Access to IoT endpoints is guarded by custom DRF permissions matching the reside
 - **Backend:** Python 3.11, Django, Django REST Framework (DRF)
 - **Authentication:** JSON Web Tokens (`djangorestframework-simplejwt`)
 - **API Documentation:** Swagger UI / drf-spectacular (OpenAPI 3.0)
-- **Database:** MySQL (local development & production), SQLite (CI test runner)
+- **Database:** PostgreSQL 16 (psycopg)
 - **Security & Auth:** Token / Session Authentication, Custom DRF Permissions
 - **Containerization:** Docker, Docker Compose
 
@@ -151,9 +151,9 @@ The repository is fully Dockerized to guarantee reproducible environments and el
    Copy the generated key and paste it into your .env file:
 
 ### 3. Resolving Local Port Conflicts
-If you have MySQL installed natively on your machine, it will conflict with the Docker container. Before launching the project, stop the local service:
+If you have PostgreSQL installed natively on your machine, it may conflict with port 5432. Stop the local service before launching:
 ```bash
-   sudo systemctl stop mysql
+   sudo systemctl stop postgresql
 ```
 
 ### 4. Running the Multi-Container Cluster
@@ -195,10 +195,6 @@ smart-uni-api/
 │   ├── urls.py                # Root routing, JWT auth endpoints & Swagger UI
 │   └── wsgi.py / asgi.py
 │
-├── docker/                    # Container configuration files
-│   └── mysql/
-│       └── init.sql           # Database initialization and grant scripts
-│
 ├── residence_connectee/       # Main API application
 │   ├── management/            # Custom Django management commands
 │   │   └── commands/
@@ -214,10 +210,10 @@ smart-uni-api/
 │   └── views.py               # DRF ViewSets and APIViews
 │
 ├── Dockerfile                 # Hardened, unprivileged Python builder
-├── docker-compose.yml         # Local development orchestrator (DRF API + MySQL)
+├── docker-compose.yml         # Local development orchestrator (DRF API + PostgreSQL 16)
 ├── manage.py                  # Django CLI utility for administrative tasks and migrations
 ├── .env.example               # Template for environment variables and secrets (DB credentials, secret keys)
-├── requirements.txt           # Python dependencies (Django, DRF, SimpleJWT, MySQL driver)
+├── requirements.txt           # Python dependencies (Django, DRF, SimpleJWT, psycopg)
 ├── .coveragerc                # Coverage enforcement configuration (>= 80%)
 └── .trivyignore               # Security scan exception rules
 ```
