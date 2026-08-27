@@ -1,18 +1,19 @@
 services:
   # --- DATABASE ---
   db:
-    image: mysql:8.0
+    image: postgres:16-alpine
     container_name: smart_uni_db_dev
+    restart: unless-stopped
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     environment:
-      MYSQL_DATABASE: residence_connectee_db
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: residence_connectee_db
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "3306:3306"
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d residence_connectee_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -32,13 +33,13 @@ services:
       - DEBUG=${DEBUG:-True}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=residence_connectee_db
-      - DB_USER=${DB_USER}
+      - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
-      - DB_PORT=3306
+      - DB_PORT=5432
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
-  mysql_data:
+  postgres_data:

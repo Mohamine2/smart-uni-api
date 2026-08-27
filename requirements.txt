@@ -4,7 +4,7 @@ djangorestframework-simplejwt
 drf-spectacular
 django-filter
 
-mysqlclient==2.2.4
+psycopg[binary]
 python-dotenv==1.2.2
 
 Pillow
