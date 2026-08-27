@@ -195,7 +195,7 @@ smart-uni-api/
 │   ├── urls.py                # Root routing, JWT auth endpoints & Swagger UI
 │   └── wsgi.py / asgi.py
 │
-├── residence_connectee/       # Main API application
+├── smart_residence/           # Main API application
 │   ├── management/            # Custom Django management commands
 │   │   └── commands/
 │   │       └── seed_db.py     # Database seeding command (News, StudyRooms, Students, Devices)
@@ -205,7 +205,6 @@ smart-uni-api/
 │   ├── models.py              # ORM Entities (Student, Device, StudyRoom, Booking, News)
 │   ├── serializers.py         # DRF Serializers (Schema validation & JSON transforms)
 │   ├── permissions.py         # Custom DRF permissions for XP tiers
-│   ├── signals.py
 │   ├── tests.py               # Unit & API integration test suites
 │   └── views.py               # DRF ViewSets and APIViews
 │

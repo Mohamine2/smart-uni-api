@@ -18,7 +18,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: residence_connectee_db
+          POSTGRES_DB: smart_residence_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci_test_password
         ports:
@@ -48,13 +48,13 @@ jobs:
           docker run --rm \
             --network host \
             -e SECRET_KEY="ci-test-key-safe-for-github-actions" \
-            -e DB_NAME="residence_connectee_db" \
+            -e DB_NAME="smart_residence_db" \
             -e DB_USER="postgres" \
             -e DB_PASSWORD="ci_test_password" \
             -e DB_HOST="127.0.0.1" \
             -e DB_PORT="5432" \
             smart-uni-api:latest \
-            coverage run manage.py test residence_connectee
+            coverage run manage.py test smart_residence
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master

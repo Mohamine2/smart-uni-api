@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from residence_connectee.models import StudyRoom
+from smart_residence.models import StudyRoom
 
 def populate_study_rooms():
     print("Starting study room population...")

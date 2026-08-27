@@ -7,7 +7,7 @@ import string
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from residence_connectee.models import Student, Apartment, Room, SmartDevice
+from smart_residence.models import Student, Apartment, Room, SmartDevice
 
 fake = Faker('fr_FR')
 

@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils.timezone import make_aware
 from faker import Faker
 
-from residence_connectee.models import (
+from smart_residence.models import (
     Apartment,
     News,
     Room,

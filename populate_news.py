@@ -6,7 +6,7 @@ from django.utils.timezone import make_aware
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from residence_connectee.models import News
+from smart_residence.models import News
 
 def populate_news():
     print("Cleaning database...")

@@ -28,7 +28,7 @@ ALLOWED_HOSTS = get_env_variable('ALLOWED_HOSTS', '127.0.0.1,localhost').split('
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': get_env_variable('DB_NAME', 'residence_connectee_db'),
+        'NAME': get_env_variable('DB_NAME', 'smart_residence_db'),
         'USER': get_env_variable('DB_USER', 'postgres'),
         'PASSWORD': get_env_variable('DB_PASSWORD'),
         'HOST': get_env_variable('DB_HOST', 'db'),
@@ -79,7 +79,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'django_filters',
-    'residence_connectee'
+    'smart_residence'
 ]
 
 MIDDLEWARE = [
@@ -123,5 +123,5 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-AUTH_USER_MODEL = 'residence_connectee.Student'
+AUTH_USER_MODEL = 'smart_residence.Student'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -6,7 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/",
-         include("residence_connectee.urls")
+         include("smart_residence.urls")
     ),
     # # Validate user credentials and obtain Access and Refresh tokens
     path("api/token/",
