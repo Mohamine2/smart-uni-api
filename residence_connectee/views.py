@@ -1,9 +1,3 @@
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.forms import AuthenticationForm
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from functools import wraps
 from django.db.models import Sum, Q, F, Avg
 from decimal import Decimal
 from rest_framework import viewsets, filters, status
