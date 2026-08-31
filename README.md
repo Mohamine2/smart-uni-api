@@ -33,7 +33,7 @@ While the original university project was a monolithic Django web application (c
 
 To understand how the application components interact when deployed via the infrastructure repository, here is the architecture diagram:
 
-<img width="1600" height="1600" alt="Application Architecture Diagram + CI pipeline" src="https://github.com/user-attachments/assets/d5cc7921-cbe3-4a0a-a1aa-53e3a4465935" />
+<img width="1600" height="1600" alt="Application Architecture Diagram + CI pipeline" src="https://github.com/user-attachments/assets/daba388a-b979-4e81-9b3b-9cd4f5430366" />
 
 ---
 
