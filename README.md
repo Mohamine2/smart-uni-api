@@ -33,7 +33,7 @@ While the original university project was a monolithic Django web application (c
 
 To understand how the application components interact when deployed via the infrastructure repository, here is the architecture diagram:
 
-<img width="1600" height="1600" alt="image" src="https://github.com/user-attachments/assets/2d7281b4-6749-4806-b198-5675f163c673" />
+<img width="1600" height="1600" alt="Application Architecture Diagram + CI pipeline" src="https://github.com/user-attachments/assets/daba388a-b979-4e81-9b3b-9cd4f5430366" />
 
 ---
 
@@ -80,21 +80,24 @@ The API exposes automated, interactive OpenAPI schema documentation:
 
 ## 🛡️ DevSecOps & Security Standards
 
-This backend enforces enterprise-grade security and automated quality gating:
+### 1. Container Security & Hardening (DevSecOps)
 
-### 1. Hardened Container Security (Non-Root Execution)
-- A dedicated unprivileged system user (`django-user`) is provisioned inside the `Dockerfile`.
-- The application runtime executes strictly within this user context, preventing container breakout exploits.
-- Filesystem permissions are locked down exclusively to the `/app` workspace.
+The production container image is hardened to minimize attack surface and ensure zero-CVE compliance during automated CI/CD scans:
+
+* **Non-Root Execution:** The application runs strictly under a dedicated unprivileged user (`django-user`, UID 8888), mitigating container breakout and privilege escalation risks.
+* **Multi-Stage Build:** Build tools and compilation headers (`gcc`, `libpq-dev`) remain confined to the build stage and are excluded from the runtime image.
+* **Runtime Attack Surface Minimization:** Package managers and build utilities (`pip`, `setuptools`, `wheel`) are purged from the final stage to prevent dynamic payload injection or live environment tampering.
+* **Minimal Runtime Footprint:** Built on a lightweight `python:3.11-slim-bookworm` base with only essential runtime shared libraries (`libpq5`).
 
 ### 2. Automated CI/DevSecOps Quality Gate (GitHub Actions)
+
 The workflow `.github/workflows/ci-devsecops.yml` runs on every `push` and `pull_request` targeting `main`:
 
-- **Automated Build:** Validates Dockerfile compilation and multi-layer caching with an unprivileged runtime user.
-- **Automated Testing & Coverage:** Executes unit and integration test suites against an isolated in-memory SQLite database, enforcing a strict **80% minimum code coverage threshold** configured via `.coveragerc`.
-- **Vulnerability Scanning (Aqua Security Trivy):** Scans the `python:3.11-slim-bookworm` base image and transitive dependencies. It breaks the build (`exit code 1`) if unmitigated `HIGH` or `CRITICAL` CVEs are found.
-- **Image Publishing:** Pushes the verified, immutable production artifact to Docker Hub, tagged with the Git short-SHA commit hash and `latest`.
-- **Continuous Deployment Handshake:** Dispatches a secure `repository_dispatch` event to [smart-uni-infra](https://github.com/Mohamine2/smart-uni-infra) to trigger downstream automated server deployment.
+* **Automated Image Build:** Builds the hardened multi-stage Docker image locally using Buildx.
+* **Automated Testing & Coverage:** Executes unit and integration test suites against a dedicated PostgreSQL service container, measuring test coverage with `coverage.py`.
+* **Vulnerability Scanning (Aqua Security Trivy):** Scans the built container image for OS and library vulnerabilities, breaking the build (`exit-code 1`) on unmitigated `HIGH` or `CRITICAL` CVEs while applying `.trivyignore`.
+* **Registry Publishing:** Pushes the verified production image to Docker Hub, tagged with the commit SHA and `latest` (only on `push` to `main`).
+* **Continuous Deployment Handshake:** Dispatches a secure `repository_dispatch` event to [smart-uni-infra](https://github.com/Mohamine2/smart-uni-infra) to trigger downstream automated server deployment.
 
 ---
 
