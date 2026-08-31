@@ -1,28 +1,53 @@
-# 1. Base image
-FROM python:3.11-slim-bookworm
+# ==========================================
+# Step 1: Builder (wheel compilation)
+# ==========================================
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
 
-# 2. Python environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 3. System dependencies for MySQL
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-libmysqlclient-dev \
-    pkg-config \
+# Build tools required to compile potential C extensions
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy application code
+# Build isolated wheels into /app/wheels
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
+
+
+# ==========================================
+# Step 2: Final production image
+# ==========================================
+FROM python:3.11-slim-bookworm AS final
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# PostgreSQL client runtime library only (no compilers)
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Retrieve and install prebuilt wheels from the builder stage
+COPY --from=builder /app/wheels /wheels
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
+    pip uninstall -y setuptools wheel pip && \
+    rm -rf /wheels
+
+# Copy application source code
 COPY . .
 
-# 6. Security: Non-root user (DevSecOps)
+# Security: non-root user
 RUN mkdir -p /app/staticfiles /app/mediafiles && \
     useradd -u 8888 django-user && \
     chown -R django-user:django-user /app
