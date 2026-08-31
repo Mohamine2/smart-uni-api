@@ -215,5 +215,6 @@ smart-uni-api/
 ├── .env.example               # Template for environment variables and secrets (DB credentials, secret keys)
 ├── requirements.txt           # Python dependencies (Django, DRF, SimpleJWT, psycopg)
 ├── .coveragerc                # Coverage enforcement configuration (>= 80%)
+├── .dockerignore              # Patterns matching files and directories to exclude from the Docker build context
 └── .trivyignore               # Security scan exception rules
 ```
