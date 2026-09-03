@@ -167,7 +167,7 @@ docker compose up --build
 The application will be exposed locally at: http://127.0.0.1:8000.
 
 ### 5. Database Initializations & Migrations
-The database container automatically initializes the core instance layout using the schema bootstrap file located at `docker/mysql/init.sql`. In a separate shell terminal, map the Django ORM schema constraints to the database:
+Once the database container is up and healthy, apply the Django migrations to create the schema and tables:
 ```bash
 docker compose exec web python manage.py migrate
 ```
